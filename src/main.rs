@@ -33,7 +33,7 @@ impl<'r> FromRequest<'r> for ApiKey<'r> {
     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         // Returns true if `key` is a valid API key string.
         fn is_valid(key: &str) -> bool {
-            key == "valid_api_key" // HERE IS THE API KEY VALUE
+            key == "api_key_value" // HERE IS THE API KEY VALUE
         }
 
         match req.headers().get_one("x-api-key") {
