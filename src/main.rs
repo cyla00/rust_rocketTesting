@@ -1,8 +1,7 @@
 #[macro_use] extern crate rocket;
-use rocket::Request;
-use rocket::tokio::time::{sleep, Duration};
-use std::path::{Path, PathBuf};
 use rocket::fs::NamedFile;
+use rocket::http::Status;
+use rocket::request::{self, Outcome, Request, FromRequest};
 
 #[get("/")]
 async fn about() -> &'static str {
@@ -19,19 +18,43 @@ async fn test(number: u32) -> &'static str {
     }
 }
 
-#[get("/admin/<path..>")]
-async fn admin(path: PathBuf) -> String {
-    format!("no permission")
+struct ApiKey<'r>(&'r str);
+
+#[derive(Debug)]
+enum ApiKeyError {
+    Missing,
+    Invalid,
 }
 
-// #[catch(403)]
-// fn not_found(req: &Request) -> String {
-//     format!("Sorry, {} no permission", req.uri())
-// }
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for ApiKey<'r> {
+    type Error = ApiKeyError;
 
+    async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        // Returns true if `key` is a valid API key string.
+        fn is_valid(key: &str) -> bool {
+            key == "valid_api_key" // HERE IS THE API KEY VALUE
+        }
+
+        match req.headers().get_one("x-api-key") {
+            None => Outcome::Failure((Status::Forbidden, ApiKeyError::Missing)),
+            Some(key) if is_valid(key) => Outcome::Success(ApiKey(key)),
+            Some(_) => Outcome::Failure((Status::Forbidden, ApiKeyError::Invalid)),
+        }
+    }
+}
+
+#[get("/admin")]
+async fn admin(key: ApiKey<'_>) -> String {
+    format!("admin page")
+}
+
+#[get("/<_..>")]
+async fn esilio() -> String {
+    format!("no exist")
+}
 
 #[launch]
 fn rocket() -> _ {
-    rocket::build().mount("/", routes![about, test, admin])
-    // rocket::build().register("/", catchers![not_found])
+    rocket::build().mount("/", routes![about, test, admin, esilio])
 }
